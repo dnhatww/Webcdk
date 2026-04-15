@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nạp CDK ChatGPT</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <div class="topbar">
+        <h1 id="pageTitle">Nạp CDK ChatGPT</h1>
+        <button id="langToggleBtn" class="lang-btn" type="button">EN</button>
+      </div>
+      <p id="flowHint" class="hint">
+        Luồng 4 bước: kiểm tra CDK, nhập session JSON, xác nhận thông tin và kích
+        hoạt.
+      </p>
+
+      <section class="card">
+        <h2 id="step1Title">Bước 1: Kiểm tra CDK</h2>
+        <div class="row">
+          <input id="codeInput" type="text" placeholder="Nhập mã CDK, ví dụ ABC123" />
+          <button id="checkCodeBtn">Kiểm tra</button>
+        </div>
+        <div id="codeResult" class="result"></div>
+      </section>
+
+      <section class="card">
+        <h2 id="step2Title">Bước 2: Dán session JSON</h2>
+        <textarea
+          id="sessionInput"
+          rows="8"
+          placeholder='Dán JSON từ https://chatgpt.com/api/auth/session'
+        ></textarea>
+        <p id="sessionWarn" class="warn">
+          Session JSON chỉ được gửi từ backend của bạn tới API kích hoạt, không log
+          ra console hoặc bên thứ ba.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2 id="step3Title">Bước 3: Xác nhận tài khoản đích</h2>
+        <button id="previewBtn">Xem thông tin xác nhận</button>
+        <div id="previewResult" class="result"></div>
+      </section>
+
+      <section class="card">
+        <h2 id="step4Title">Bước 4: Kích hoạt và theo dõi trạng thái</h2>
+        <button id="startBtn">Bắt đầu kích hoạt</button>
+        <div id="activationResult" class="result"></div>
+      </section>
+
+      <section class="card">
+        <h2 id="bulkTitle">Kiểm tra nhiều CDK</h2>
+        <p id="bulkHint" class="hint">Nhập nhiều mã, cách nhau bởi dấu phẩy hoặc xuống dòng.</p>
+        <textarea id="bulkCodesInput" rows="4" placeholder="ABC123, DEF456, GHI789"></textarea>
+        <button id="bulkCheckBtn">Kiểm tra hàng loạt</button>
+        <div id="bulkResult" class="result"></div>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>
