@@ -1,4 +1,10 @@
-const { allowMethod, callUpstream, sanitizeCode, sendJson } = require("../_lib/utils");
+const {
+  allowMethod,
+  callUpstream,
+  createUpstreamErrorPayload,
+  sanitizeCode,
+  sendJson
+} = require("../_lib/utils");
 
 module.exports = async function handler(req, res) {
   if (!allowMethod(req, res, "POST")) {
@@ -20,10 +26,11 @@ module.exports = async function handler(req, res) {
     });
 
     if (!upstream.ok) {
-      sendJson(res, upstream.status, {
-        error: "Không thể kiểm tra nhiều CDK.",
-        details: upstream.data
-      });
+      sendJson(
+        res,
+        upstream.status,
+        createUpstreamErrorPayload("Không thể kiểm tra nhiều CDK.", upstream)
+      );
       return;
     }
 

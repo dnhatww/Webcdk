@@ -12,6 +12,10 @@
     {
       "source": "/styles.css",
       "destination": "/public/styles.css"
+    },
+    {
+      "source": "/config.js",
+      "destination": "/public/config.js"
     }
   ]
 }

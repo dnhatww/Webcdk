@@ -1,5 +1,11 @@
 const {
   allowMethod,
+  buildConfirmationToken,
+  callUpstream,
+  CONFIRM_TOKEN_TTL_MS,
+  createUpstreamErrorPayload,
+  isPaidPlan,
+  mapCodeInfo,
   parseSessionInput,
   sanitizeCode,
   sendJson
@@ -19,11 +25,33 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    sendJson(res, 200, {
+    const upstream = await callUpstream(`/keys/${encodeURIComponent(code)}`);
+    if (!upstream.ok) {
+      sendJson(res, upstream.status, createUpstreamErrorPayload("Không thể kiểm tra CDK.", upstream));
+      return;
+    }
+
+    const codeInfo = mapCodeInfo(upstream.data);
+    const expiresAt = Date.now() + CONFIRM_TOKEN_TTL_MS;
+    const confirmToken = buildConfirmationToken({
       code,
       email: session.email,
       currentPlan: session.currentPlan,
-      name: session.userName
+      expiresAt
+    });
+
+    sendJson(res, 200, {
+      code: codeInfo.code || code,
+      codeStatus: codeInfo.status,
+      email: session.email,
+      currentPlan: session.currentPlan,
+      currentPlanIsPaid: isPaidPlan(session.currentPlan),
+      name: session.userName,
+      service: codeInfo.service,
+      plan: codeInfo.plan,
+      term: codeInfo.term,
+      confirmToken,
+      confirmExpiresAt: new Date(expiresAt).toISOString()
     });
   } catch (error) {
     sendJson(res, 400, { error: error.message });

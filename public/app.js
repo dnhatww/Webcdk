@@ -18,6 +18,7 @@ const previewResult = document.getElementById("previewResult");
 const activationResult = document.getElementById("activationResult");
 const bulkResult = document.getElementById("bulkResult");
 const langToggleBtn = document.getElementById("langToggleBtn");
+const apiBaseUrl = String(window.APP_CONFIG?.BACKEND_API_URL || "").replace(/\/+$/, "");
 
 const i18n = {
   vi: {
@@ -54,6 +55,8 @@ const i18n = {
     targetPlan: "Gói đích",
     term: "Thời hạn",
     service: "Dịch vụ",
+    paidPlanWarning:
+      "Tài khoản đích đang có gói trả phí. Vui lòng xác nhận kỹ email và thông tin gói trước khi kích hoạt.",
     needFinishStep1: "Bạn cần hoàn thành bước 1 trước.",
     needConfirmStep3: "Bạn cần xác nhận bước 3 trước khi kích hoạt.",
     startingActivation: "Đang bắt đầu kích hoạt...",
@@ -65,7 +68,9 @@ const i18n = {
     enterAtLeastOneCode: "Vui lòng nhập ít nhất 1 mã CDK.",
     checkingBulk: "Đang kiểm tra hàng loạt...",
     unknown: "unknown",
-    dash: "-"
+    dash: "-",
+    missingBackendUrl:
+      "Bạn chưa cấu hình BACKEND_API_URL trong public/config.js (ví dụ: https://api.tenmiencuaban.com)."
   },
   en: {
     pageTitle: "ChatGPT CDK Activation",
@@ -101,6 +106,8 @@ const i18n = {
     targetPlan: "Target plan",
     term: "Term",
     service: "Service",
+    paidPlanWarning:
+      "Target account already has a paid plan. Please double-check email and plan details before activation.",
     needFinishStep1: "You need to complete step 1 first.",
     needConfirmStep3: "You need to confirm step 3 before activation.",
     startingActivation: "Starting activation...",
@@ -112,7 +119,9 @@ const i18n = {
     enterAtLeastOneCode: "Please enter at least one CDK code.",
     checkingBulk: "Checking in bulk...",
     unknown: "unknown",
-    dash: "-"
+    dash: "-",
+    missingBackendUrl:
+      "BACKEND_API_URL is not configured in public/config.js (example: https://api.yourdomain.com)."
   }
 };
 
@@ -151,8 +160,19 @@ function setResult(element, text, isError = false) {
   element.style.color = isError ? "#b91c1c" : "#111827";
 }
 
+function apiUrl(path) {
+  if (!path.startsWith("/")) {
+    return `${apiBaseUrl}/${path}`;
+  }
+  return apiBaseUrl ? `${apiBaseUrl}${path}` : path;
+}
+
 async function requestJSON(url, options = {}) {
-  const response = await fetch(url, {
+  if (!apiBaseUrl) {
+    throw new Error(t("missingBackendUrl"));
+  }
+
+  const response = await fetch(apiUrl(url), {
     headers: { "Content-Type": "application/json" },
     ...options
   });
@@ -223,11 +243,14 @@ previewBtn.addEventListener("click", async () => {
         `${t("email")}: ${data.email}`,
         `${t("name")}: ${data.name || t("noName")}`,
         `${t("currentPlanInSession")}: ${data.currentPlan}`,
-        `${t("cardCode")}: ${state.codeInfo.code}`,
-        `${t("targetPlan")}: ${state.codeInfo.plan}`,
-        `${t("term")}: ${state.codeInfo.term}`,
-        `${t("service")}: ${state.codeInfo.service}`
-      ].join("\n")
+        `${t("cardCode")}: ${data.code || state.codeInfo.code}`,
+        `${t("targetPlan")}: ${data.plan || state.codeInfo.plan}`,
+        `${t("term")}: ${data.term || state.codeInfo.term}`,
+        `${t("service")}: ${data.service || state.codeInfo.service}`,
+        data.currentPlanIsPaid ? t("paidPlanWarning") : null
+      ]
+        .filter(Boolean)
+        .join("\n")
     );
   } catch (error) {
     state.preview = null;
@@ -292,7 +315,7 @@ startBtn.addEventListener("click", async () => {
   try {
     const data = await requestJSON("/api/activation/start", {
       method: "POST",
-      body: JSON.stringify({ code, session })
+      body: JSON.stringify({ code, session, confirmToken: state.preview.confirmToken })
     });
     setResult(activationResult, `${t("activationStarted")}: ${data.status}`);
     await pollActivation(code);
