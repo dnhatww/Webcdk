@@ -158,6 +158,9 @@ async function requestJSON(url, options = {}) {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (data.error && data.details?.message) {
+      throw new Error(`${data.error} (${data.details.message})`);
+    }
     throw new Error(data.error || t("unknownError"));
   }
   return data;

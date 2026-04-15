@@ -54,17 +54,37 @@ async function callUpstream(endpoint, options = {}) {
   const response = await fetch(`${UPSTREAM_BASE_URL}${endpoint}`, {
     method: options.method || "GET",
     headers: {
+      Accept: "application/json, text/plain, */*",
       "Content-Type": "application/json",
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
       ...(options.headers || {})
     },
     body: options.body ? JSON.stringify(options.body) : undefined
   });
 
+  const contentType = response.headers.get("content-type") || "";
   let data = {};
-  try {
-    data = await response.json();
-  } catch (_err) {
-    data = { message: "Upstream trả về dữ liệu không hợp lệ." };
+
+  if (contentType.includes("application/json")) {
+    try {
+      data = await response.json();
+    } catch (_err) {
+      data = {
+        message: "Upstream trả về JSON không hợp lệ.",
+        upstream_status: response.status,
+        upstream_status_text: response.statusText
+      };
+    }
+  } else {
+    const rawText = await response.text();
+    data = {
+      message: "Upstream không trả về JSON.",
+      upstream_status: response.status,
+      upstream_status_text: response.statusText,
+      upstream_content_type: contentType || "unknown",
+      upstream_body_preview: rawText.slice(0, 200)
+    };
   }
 
   return { ok: response.ok, status: response.status, data };
