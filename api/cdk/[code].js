@@ -1,6 +1,8 @@
 const {
   allowMethod,
   callUpstream,
+  createUpstreamErrorPayload,
+  mapCodeInfo,
   sanitizeCode,
   sendJson
 } = require("../_lib/utils");
@@ -19,14 +21,11 @@ module.exports = async function handler(req, res) {
   try {
     const upstream = await callUpstream(`/keys/${encodeURIComponent(code)}`);
     if (!upstream.ok) {
-      sendJson(res, upstream.status, {
-        error: "Không thể kiểm tra CDK.",
-        details: upstream.data
-      });
+      sendJson(res, upstream.status, createUpstreamErrorPayload("Không thể kiểm tra CDK.", upstream));
       return;
     }
 
-    sendJson(res, 200, upstream.data);
+    sendJson(res, 200, mapCodeInfo(upstream.data));
   } catch (_err) {
     sendJson(res, 502, { error: "Lỗi kết nối upstream." });
   }

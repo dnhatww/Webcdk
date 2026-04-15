@@ -1,57 +1,64 @@
-# Web nap CDK ChatGPT (Vercel)
+# Web nap CDK ChatGPT (Frontend Vercel + Backend VPS)
 
-Du an da duoc chuyen sang kien truc Vercel Serverless:
+Du an da duoc sua theo mo hinh on dinh:
 
-- Frontend static: `public/index.html`, `public/app.js`, `public/styles.css`
-- Backend serverless API: `api/...`
-- Route trang chu va static duoc cau hinh trong `vercel.json`
+- Frontend deploy tren Vercel (`public/`)
+- Backend deploy tren VPS IP tinh (`backend/`)
+- Frontend goi backend qua `BACKEND_API_URL` trong `public/config.js`
 
-## API hien co
+## Cau truc
 
+- `public/index.html`, `public/app.js`, `public/styles.css`, `public/config.js`: giao dien
+- `backend/server.js`: API proxy toi doremon
+- `backend/.env.example`: mau bien moi truong backend
+- `vercel.json`: rewrite static files
+
+## Buoc 1 - Deploy backend len VPS
+
+```bash
+cd backend
+npm install
+npm start
+```
+
+Bien moi truong backend:
+
+- `PORT=3000`
+- `DOREMON_BASE_URL=https://doremon.me/shop/api/activate/chatgpt`
+- `ALLOWED_ORIGINS=https://webcdk.vercel.app,https://your-domain.com`
+
+Khuyen nghi chay bang PM2 + Nginx + SSL.
+
+## Buoc 2 - Cau hinh frontend goi backend
+
+Sua file `public/config.js`:
+
+```js
+window.APP_CONFIG = {
+  BACKEND_API_URL: "https://api.yourdomain.com"
+};
+```
+
+## Buoc 3 - Deploy frontend len Vercel
+
+1. Push code len GitHub
+2. Import project vao Vercel
+3. Framework: `Other`
+4. Build command: de trong
+5. Output directory: de trong
+6. Deploy
+
+## API backend
+
+- `GET /api/health`
 - `GET /api/cdk/:code`
 - `POST /api/activation/preview`
 - `POST /api/activation/start`
 - `GET /api/activation/:code`
 - `POST /api/cdk/bulk-status`
-- `GET /api/health`
-
-## Chay local voi Vercel CLI
-
-```bash
-npm install
-npx vercel dev
-```
-
-Mo: `http://localhost:3000`
-
-## Deploy len Vercel
-
-1. Push code len GitHub/GitLab/Bitbucket
-2. Vao Vercel -> New Project -> Import repository
-3. Framework Preset: `Other`
-4. Build Command: de trong (khong can build)
-5. Output Directory: de trong
-6. Deploy
-
-## Bien moi truong
-
-- `DOREMON_BASE_URL` (tuy chon)
-
-Mac dinh:
-
-`https://doremon.me/shop/api/activate/chatgpt`
-
-## Gan domain cua ban
-
-1. Vao Project Settings -> Domains
-2. Them domain
-3. Copy ban ghi DNS ma Vercel yeu cau (`A`, `CNAME`, hoac ca hai)
-4. Cau hinh DNS o nha cung cap domain
-5. Cho DNS cap nhat va kiem tra trang thai `Valid Configuration`
 
 ## Bao mat
 
-- Frontend chi goi backend cua ban (`/api/...`).
-- Backend goi endpoint cong khai doremon.
 - Khong log raw ChatGPT session JSON.
-- Khong de lo upstream details khong can thiet cho end user.
+- Gioi han CORS bang `ALLOWED_ORIGINS`.
+- Frontend khong goi truc tiep upstream.

@@ -1,6 +1,7 @@
 const {
   allowMethod,
   callUpstream,
+  createUpstreamErrorPayload,
   sanitizeCode,
   sendJson
 } = require("../_lib/utils");
@@ -20,10 +21,11 @@ module.exports = async function handler(req, res) {
     const upstream = await callUpstream(`/keys/${encodeURIComponent(code)}/activation`);
 
     if (!upstream.ok) {
-      sendJson(res, upstream.status, {
-        error: "Không thể lấy trạng thái kích hoạt.",
-        details: upstream.data
-      });
+      sendJson(
+        res,
+        upstream.status,
+        createUpstreamErrorPayload("Không thể lấy trạng thái kích hoạt.", upstream)
+      );
       return;
     }
 

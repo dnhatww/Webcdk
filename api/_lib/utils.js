@@ -1,6 +1,11 @@
-const UPSTREAM_BASE_URL =
-  process.env.DOREMON_BASE_URL ||
-  "https://doremon.me/shop/api/activate/chatgpt";
+const crypto = require("crypto");
+
+const DEFAULT_UPSTREAM_BASE_URL = "https://doremon.me/shop/api/activate/chatgpt";
+const UPSTREAM_BASE_URL = process.env.DOREMON_BASE_URL || DEFAULT_UPSTREAM_BASE_URL;
+const CONFIRM_TOKEN_TTL_MS = Number(process.env.CONFIRM_TOKEN_TTL_MS || 5 * 60 * 1000);
+const CONFIRM_TOKEN_SECRET = String(
+  process.env.ACTIVATION_CONFIRM_SECRET || "change-this-confirm-secret"
+);
 
 function sendJson(res, status, payload) {
   res.status(status).json(payload);
@@ -50,6 +55,106 @@ function parseSessionInput(sessionInput) {
   };
 }
 
+function mapCodeInfo(raw = {}) {
+  return {
+    code: String(raw.code || "").trim(),
+    status: String(raw.status || "unknown").trim(),
+    service: String(raw.service || "chatgpt").trim(),
+    plan: String(raw.plan || "unknown").trim(),
+    term: String(raw.term || "unknown").trim()
+  };
+}
+
+function isPaidPlan(plan = "") {
+  const normalized = String(plan).trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+  return [
+    "plus",
+    "pro",
+    "team",
+    "enterprise",
+    "business",
+    "premium",
+    "paid"
+  ].some((keyword) => normalized.includes(keyword));
+}
+
+function getUpstreamErrorMessage(data) {
+  if (typeof data?.message === "string" && data.message.trim()) {
+    return data.message.trim();
+  }
+  if (typeof data?.error === "string" && data.error.trim()) {
+    return data.error.trim();
+  }
+  return "Upstream xử lý thất bại.";
+}
+
+function createUpstreamErrorPayload(error, upstream) {
+  return {
+    error,
+    details: {
+      status: upstream.status,
+      message: getUpstreamErrorMessage(upstream.data)
+    }
+  };
+}
+
+function base64UrlEncode(input) {
+  return Buffer.from(input, "utf8").toString("base64url");
+}
+
+function signPayload(payload) {
+  return crypto.createHmac("sha256", CONFIRM_TOKEN_SECRET).update(payload).digest("base64url");
+}
+
+function buildConfirmationToken(payload) {
+  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+  const signature = signPayload(encodedPayload);
+  return `${encodedPayload}.${signature}`;
+}
+
+function verifyConfirmationToken(token, expectedFields) {
+  if (typeof token !== "string" || !token.includes(".")) {
+    return { ok: false, error: "Thiếu xác nhận từ bước 3." };
+  }
+
+  const [encodedPayload, signature] = token.split(".");
+  if (!encodedPayload || !signature) {
+    return { ok: false, error: "Xác nhận bước 3 không hợp lệ." };
+  }
+
+  const expectedSignature = signPayload(encodedPayload);
+  if (signature !== expectedSignature) {
+    return { ok: false, error: "Xác nhận bước 3 không hợp lệ." };
+  }
+
+  let decoded;
+  try {
+    decoded = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8"));
+  } catch (_err) {
+    return { ok: false, error: "Xác nhận bước 3 không hợp lệ." };
+  }
+
+  if (!decoded?.expiresAt || Number(decoded.expiresAt) < Date.now()) {
+    return { ok: false, error: "Xác nhận bước 3 đã hết hạn. Vui lòng xác nhận lại." };
+  }
+
+  const checks = [
+    ["code", expectedFields.code],
+    ["email", expectedFields.email],
+    ["currentPlan", expectedFields.currentPlan]
+  ];
+  for (const [field, expectedValue] of checks) {
+    if (String(decoded[field] || "") !== String(expectedValue || "")) {
+      return { ok: false, error: "Dữ liệu xác nhận không khớp. Vui lòng xác nhận lại." };
+    }
+  }
+
+  return { ok: true, payload: decoded };
+}
+
 async function callUpstream(endpoint, options = {}) {
   const response = await fetch(`${UPSTREAM_BASE_URL}${endpoint}`, {
     method: options.method || "GET",
@@ -92,8 +197,14 @@ async function callUpstream(endpoint, options = {}) {
 
 module.exports = {
   allowMethod,
+  buildConfirmationToken,
   callUpstream,
+  createUpstreamErrorPayload,
+  isPaidPlan,
+  mapCodeInfo,
   parseSessionInput,
   sanitizeCode,
-  sendJson
+  sendJson,
+  verifyConfirmationToken,
+  CONFIRM_TOKEN_TTL_MS
 };
